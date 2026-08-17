@@ -106,6 +106,61 @@ describe('MessageItem arms', () => {
     expect(writeText).toHaveBeenCalledWith('hello bubble')
   })
 
+  it('user bubbles confirm before requesting a before-turn edit', () => {
+    const editAt = vi.fn()
+    const node: ChatConversationViewNode = {
+      key: 'fixture:user:1',
+      kind: 'user',
+      id: '1',
+      target: 'chat',
+      anchorSeq: 1,
+      location: { kind: 'session' },
+      visibility: 'visible',
+      data: {
+        kind: 'user', seq: 1, time: 1_000,
+        content: [{ type: 'text', text: 'hello bubble' }],
+        source: null,
+      },
+    }
+    render(
+      <UserMessageNodeView
+        {...({ node, t, editAt } as unknown as ChatNodeViewProps<'user'>)}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: '编辑' }))
+    expect(editAt).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: '重新编辑这条消息？' })).toBeTruthy()
+    fireEvent.click(screen.getByText('取消'))
+    expect(editAt).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '编辑' }))
+    fireEvent.click(screen.getByRole('button', { name: '继续编辑' }))
+    expect(editAt).toHaveBeenCalledWith(1, 'hello bubble')
+  })
+
+  it('steering bubbles never offer edit even when the chat injects editAt', () => {
+    const node: ChatConversationViewNode = {
+      key: 'fixture:steering:2',
+      kind: 'steering',
+      id: '2',
+      target: 'chat',
+      anchorSeq: 2,
+      location: { kind: 'session' },
+      visibility: 'visible',
+      data: {
+        kind: 'steering', messageId: 'steer-message', seq: 2, time: 1_000,
+        content: [{ type: 'text', text: 'steer!' }],
+        source: null,
+      },
+    }
+    render(
+      <UserMessageNodeView
+        {...({ node, t, editAt: vi.fn() } as unknown as ChatNodeViewProps<'steering'>)}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: '编辑' })).toBeNull()
+  })
+
   it('user copy falls back to execCommand when clipboard.writeText is unavailable', () => {
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,

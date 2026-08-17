@@ -286,4 +286,85 @@ describe('sessions.fork', () => {
     })
     await ctx.fiber.dispose()
   })
+
+  it('before-turn cuts before the anchored turn, including an open turn', async () => {
+    const ctx = await composed()
+    const source = liveAgent(ctx, 'session-before', 1, 'open')
+    const openPrompt = source.events.find(event => event.type === 'user/message' && event.seq > 2)
+    const response = await api(ctx).sessions.fork(request({
+      sessionId: source.id,
+      atSeq: openPrompt?.seq ?? 4,
+      cut: 'before-turn',
+    }))
+    expect(response.result.ok).toBe(true)
+    if (!response.result.ok) return
+    expect(ctx.sessions.get(response.result.value.sessionId)?.events.map(event => event.type)).toEqual([
+      'turn/start', 'user/message', 'turn/end', 'session/end-seed',
+    ])
+    await ctx.fiber.dispose()
+  })
+
+  it('before-turn on the first prompt yields an empty seed', async () => {
+    const ctx = await composed()
+    const source = liveAgent(ctx, 'session-first', 1)
+    const prompt = source.events.find(event => event.type === 'user/message')
+    const response = await api(ctx).sessions.fork(request({
+      sessionId: source.id,
+      atSeq: prompt?.seq ?? 1,
+      cut: 'before-turn',
+    }))
+    expect(response.result.ok).toBe(true)
+    if (!response.result.ok) return
+    expect(ctx.sessions.get(response.result.value.sessionId)?.events.map(event => event.type)).toEqual([
+      'session/end-seed',
+    ])
+    await ctx.fiber.dispose()
+  })
+
+  it('before-turn without atSeq is unavailable', async () => {
+    const ctx = await composed()
+    const source = liveAgent(ctx, 'session-missing-anchor', 1)
+    const response = await api(ctx).sessions.fork(request({
+      sessionId: source.id,
+      cut: 'before-turn',
+    }))
+    expect(response.result).toMatchObject({
+      ok: false,
+      error: { code: 'fork-unavailable', details: { sessionId: source.id } },
+    })
+    if (!response.result.ok) expect(response.result.error.message).toMatch(/requires atSeq/)
+    await ctx.fiber.dispose()
+  })
+
+  it('before-turn past the log end is unavailable', async () => {
+    const ctx = await composed()
+    const source = liveAgent(ctx, 'session-before-past', 1)
+    const response = await api(ctx).sessions.fork(request({
+      sessionId: source.id,
+      atSeq: 999,
+      cut: 'before-turn',
+    }))
+    expect(response.result).toMatchObject({
+      ok: false,
+      error: { code: 'fork-unavailable', details: { sessionId: source.id } },
+    })
+    await ctx.fiber.dispose()
+  })
+
+  it('before-turn on a log with no turn/start is unavailable', async () => {
+    const ctx = await composed()
+    const source = ctx.sessions.create(sid('session-no-turn'), { meta: { cwd: '/proj' } })
+    source.append('session/title', { title: 'named', messageSeqs: [], source: { kind: 'user' } })
+    ctx.agents.register({ id: source.id, session: source, status: 'idle', ctx } as Agent)
+    const response = await api(ctx).sessions.fork(request({
+      sessionId: source.id,
+      atSeq: 0,
+      cut: 'before-turn',
+    }))
+    expect(response.result).toMatchObject({
+      ok: false,
+      error: { code: 'fork-unavailable', details: { sessionId: source.id } },
+    })
+    await ctx.fiber.dispose()
+  })
 })

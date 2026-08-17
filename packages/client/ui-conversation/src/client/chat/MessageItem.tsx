@@ -1,14 +1,15 @@
 // MessageItem: simple chat nodes — user and consumed-steering bubbles
-// (right-aligned, with clock + copy IconActions; branch lives only under
-// assistant answers), pending steering (copy only), context injection,
-// compaction marker, retry disclosure, and unknown-surface JSON rows.
+// (right-aligned, with clock + copy; user bubbles add confirmed re-edit,
+// branch lives only under assistant answers), pending steering (copy only),
+// context injection, compaction marker, retry disclosure, and unknown-surface
+// JSON rows.
 
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
   ModelRetryNode, TurnErrorNode, UserMessageNode,
 } from '@deepseek-ai/dsh-client-runtime/client'
-import { JsonBlock, MessageText, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, JsonBlock, MessageText, Modal, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatNodeViewProps, ChatViewSlotProps } from '../contract/slots.ts'
 import { ImageGallery, type ImageLoader } from '@deepseek-ai/dsh-client-ui-attachment'
 import { messageImageLabels } from '../image-labels.ts'
@@ -236,24 +237,56 @@ export function PendingSteeringBubble({ content, loadImage, t }: {
 
 /** User and admitted-steering keyed Chat renderer. */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, loadImage, t,
+  node, loadImage, editAt, t,
 }: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
+  const [confirming, setConfirming] = useState(false)
+  const imageLoader = loadImage ?? (() => Promise.reject(new Error(t('image.serviceUnavailable'))))
+  const canEdit = node.kind === 'user' && editAt !== undefined
+  const promptText = contentParts(data.content).text
   return (
-    <UserStyleBubble
-      content={data.content}
-      imageLoader={loadImage}
-      t={t}
-      actions={text => (
-        <MessageIconActions
-          text={text}
-          time={data.time}
-          clock="start"
-          className={css.actions}
-          t={t}
+    <>
+      <UserStyleBubble
+        content={data.content}
+        imageLoader={imageLoader}
+        t={t}
+        actions={text => (
+          <MessageIconActions
+            text={text}
+            time={data.time}
+            clock="start"
+            className={css.actions}
+            onEdit={canEdit ? () => { setConfirming(true) } : undefined}
+            t={t}
+          />
+        )}
+      />
+      {canEdit && confirming && (
+        <Modal
+          open
+          onClose={() => { setConfirming(false) }}
+          title={t('message.edit.title')}
+          closeLabel={t('message.edit.cancel')}
+          description={t('message.edit.description')}
+          footer={(
+            <>
+              <Button variant="outline" onClick={() => { setConfirming(false) }}>
+                {t('message.edit.cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setConfirming(false)
+                  editAt(data.seq, promptText)
+                }}
+              >
+                {t('message.edit.confirm')}
+              </Button>
+            </>
+          )}
         />
       )}
-    />
+    </>
   )
 })
 

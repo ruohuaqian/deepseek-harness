@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { resolveSlotLabel, type BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 import {
-  resolveWorkspacePath, type ISessions, type SessionId,
+  resolveWorkspacePath, type ISessions, type IWorkspaces, type SessionId,
 } from '@deepseek-ai/dsh-client-runtime/client'
 // Type-only: the ctx.settingsScope Context merge. Cross-plugin collaboration
 // goes through the service, never a value import (client bundle purity gate).
@@ -97,6 +97,52 @@ function scopedConversation(sessions: ISessions, id: SessionId): IConversation {
   return conversation
 }
 
+/**
+ * Keep one listed conversation after a before-turn re-edit fork: copy the
+ * source title, occupy the source workspace slot, cancel a running source
+ * turn, and archive the source. The log stays append-only; the child is the
+ * conversation the user keeps editing. A stub that returns the source id is
+ * a no-op so tests that do not materialize a child cannot archive it.
+ */
+function replaceEditedSource(
+  sessions: ISessions,
+  workspaces: IWorkspaces,
+  sourceId: SessionId,
+  childId: SessionId,
+): void {
+  if (childId === sourceId) return
+  const sourceSummary = sessions.list.getSnapshot().byId[sourceId]
+  const title = sourceSummary?.title
+    ?? (sourceSummary !== undefined && !sourceSummary.blank ? sourceSummary.displayTitle : undefined)
+  if (title !== undefined && title !== '') {
+    const child = sessions.binding(childId)?.session
+    if (child !== undefined) {
+      void child.rename(title).catch(() => {
+        // Child stays open under whatever title the seed carried.
+      })
+    }
+  }
+  const workspaceId = workspaces.list.getSnapshot().items.find(
+    workspace => workspace.sessionIds.includes(sourceId),
+  )?.workspaceId
+  const placed = workspaceId === undefined
+    ? Promise.resolve()
+    : workspaces.insertSessionBefore(workspaceId, childId, sourceId).then(() => undefined)
+  void placed
+    .catch(() => {
+      // Attach already listed the child; archive still hides the source.
+    })
+    .then(() => {
+      const source = sessions.binding(sourceId)?.session
+      if (source === undefined) return
+      return source.cancel().then(() => undefined, () => undefined)
+    })
+    .then(() => workspaces.archiveSession(sourceId))
+    .catch(() => {
+      // Child remains the open view; a failed archive leaves the source listed.
+    })
+}
+
 /** Resolve package-internal attachment operations from the public service registration. */
 function concreteConversation(ctx: Context): ConversationController {
   const conversation = ctx.get('conversation') as ConversationController | undefined
@@ -149,6 +195,7 @@ export function apply(ctx: Context): void {
   // width reflow when the tab ring remounts the view. Deliberately not
   // persisted: a fresh page load keeps the open-jump-to-bottom default.
   const chatScrollPositions = new Map<SessionId, ChatScrollPosition>()
+  const pendingEditDrafts = new Map<SessionId, string>()
 
   const viewTabs = (): ViewTab[] => {
     const tabs: ViewTab[] = []
@@ -248,6 +295,7 @@ export function apply(ctx: Context): void {
         views,
         releaseSessionImages: (id) => { conversation.releaseSessionImages(id) },
         bindDraftMirror: write => inputHub.shell(sessionId).bindMirror(write),
+        consumeEditDraft: () => pendingEditDrafts.get(sessionId),
       }
     },
   }, ConversationSession)
@@ -419,6 +467,25 @@ export function apply(ctx: Context): void {
             .then((childId) => { sessions.open(childId) })
             .catch(() => {
               // Fork or child-rename failure keeps the source view untouched.
+            })
+        },
+        editAt: (seq, text) => {
+          sessions.fork({ sessionId, atSeq: seq, cut: 'before-turn' })
+            .then((childId) => {
+              pendingEditDrafts.set(childId, text)
+              sessions.open(childId)
+              // Seed the child shell if provide already materialized it;
+              // otherwise ConversationSession's mount effect reads the stash.
+              try {
+                const shell = inputHub.shell(childId)
+                if (text !== '' && shell.snapshot.draft === '') shell.setDraft(text)
+              } catch {
+                // No binding yet: the session slot creates the shell on mount.
+              }
+              replaceEditedSource(sessions, workspaces, sessionId, childId)
+            })
+            .catch(() => {
+              // Fork failure keeps the source view untouched.
             })
         },
       }

@@ -205,7 +205,7 @@ describe('unary round trip', () => {
   })
 
   it('routes session fork with its optional cut anchor through the wire', async () => {
-    let seen: RpcRequest<{ sessionId: SessionId; atSeq?: number }> | undefined
+    let seen: RpcRequest<{ sessionId: SessionId; atSeq?: number; cut?: 'before-turn' }> | undefined
     const api = scriptedApi({
       sessions: {
         fork: (request) => {
@@ -214,8 +214,10 @@ describe('unary round trip', () => {
         },
       },
     })
-    const response = await client(api).sessions.fork({ sessionId: sid('s-parent'), atSeq: 7 })
-    expect(seen?.payload).toEqual({ sessionId: 's-parent', atSeq: 7 })
+    const response = await client(api).sessions.fork({
+      sessionId: sid('s-parent'), atSeq: 7, cut: 'before-turn',
+    })
+    expect(seen?.payload).toEqual({ sessionId: 's-parent', atSeq: 7, cut: 'before-turn' })
     expect(response.result).toEqual({ ok: true, value: { sessionId: 's-child' } })
   })
 

@@ -1,6 +1,6 @@
 /** Strict per-session header/body content inserted into the resident conversation layout. */
 
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import type { SessionId, SessionListState, SessionSummary } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
@@ -137,7 +137,7 @@ export function ConversationSessionHeader({
  */
 export function ConversationSession({
   sessionId, useSession, useInput, inputActions, useStore, actions,
-  renderSlot, views, bindDraftMirror, releaseSessionImages,
+  renderSlot, views, bindDraftMirror, consumeEditDraft, releaseSessionImages,
 }: ConversationSessionProps) {
   useSyncExternalStore(views.subscribe, views.version)
   const tabs = views.list()
@@ -150,12 +150,17 @@ export function ConversationSession({
   // `?? null`: persisted snapshots from before the inspect field rehydrate without it.
   const inspect = useStore(s => s.inspect ?? null)
 
-  useEffect(() => {
-    if (inputState.draft === '' && storedDraft !== '') inputActions.setDraft(storedDraft)
+  useLayoutEffect(() => {
+    const editDraft = consumeEditDraft()
+    if (editDraft !== undefined) {
+      if (editDraft !== '' && inputState.draft === '') inputActions.setDraft(editDraft)
+    } else if (inputState.draft === '' && storedDraft !== '') {
+      inputActions.setDraft(storedDraft)
+    }
     const unmirror = bindDraftMirror(actions.setDraft)
     return () => { unmirror() }
-    // Mount-only (deps pinned to inputActions): later store writes come from
-    // the machine mirror, not this seed effect.
+    // Per-session remount (slot key = sessionId) plus inputActions identity.
+    // Layout phase so a re-edit draft is in the composer before first paint.
   }, [inputActions])
 
   useEffect(() => () => {
