@@ -384,6 +384,13 @@ describe('classifyDenial', () => {
     expect(classifyDenial(runResult(1, 'bash: /etc/x: Operation not permitted'), ['operation not permitted'])).toBe(true)
     expect(classifyDenial(runResult(1, 'sh: /x: Permission denied'), ['read-only file system'])).toBe(false)
   })
+
+  it('classifies backend denialExitCodes even when stderr is empty', () => {
+    const statusDllInitFailed = 0xC0000142
+    expect(classifyDenial(runResult(statusDllInitFailed, ''), UNIX_SIGNATURES, [statusDllInitFailed])).toBe(true)
+    expect(classifyDenial(runResult(statusDllInitFailed | 0, ''), UNIX_SIGNATURES, [statusDllInitFailed])).toBe(true)
+    expect(classifyDenial(runResult(1, ''), UNIX_SIGNATURES, [statusDllInitFailed])).toBe(false)
+  })
 })
 
 describe('isRunnerSpawnFailure', () => {

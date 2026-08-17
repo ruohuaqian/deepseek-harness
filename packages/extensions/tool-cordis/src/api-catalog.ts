@@ -2823,7 +2823,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConfinedArgv',
-    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
+    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    denialSignatures: readonly string[];\n    denialExitCodes?: readonly number[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
   },
   {
     name: 'ConfinedSandboxMode',

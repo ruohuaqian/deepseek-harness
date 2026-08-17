@@ -107,6 +107,14 @@ export interface ConfinedArgv {
    */
   denialSignatures: readonly string[]
   /**
+   * Process exit codes that are denials even when stderr is empty. Windows ACL
+   * confined grandchildren (`git.exe`, `python.exe`) often die during DLL
+   * initialization (`STATUS_DLL_INIT_FAILED`) with no diagnostic line; the
+   * unsigned NTSTATUS and its signed 32-bit form both match. Omitted or empty
+   * on backends whose denials always appear on stderr.
+   */
+  denialExitCodes?: readonly number[]
+  /**
    * Structured runner-failure evidence rules. Consumers require a matching
    * fatal stderr line (after informational exclusions) and any rule-specific
    * exit-code gate before checking denial signatures: runner failure means the

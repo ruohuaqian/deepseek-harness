@@ -115,7 +115,7 @@ interface RunnerFailureRule {
 }
 ```
 
-`ConfinedArgv` is what the consumer spawns. Besides the replacement argv, it carries the backend's enforcement fact and two orthogonal stderr classifiers. `denialSignatures` identify the confined command being blocked while the sandbox works correctly. `runnerFailureRules` identify the sandbox runner refusing or failing before it executes the command; consumers check these first and surface a sandbox infrastructure failure, never an ordinary task failure.
+`ConfinedArgv` is what the consumer spawns. Besides the replacement argv, it carries the backend's enforcement fact and orthogonal classifiers. `denialSignatures` identify the confined command being blocked while the sandbox works correctly. `denialExitCodes` identify the same class of denial when the process exits with a backend-specific status and empty stderr (Windows ACL `STATUS_DLL_INIT_FAILED` / `STATUS_ACCESS_DENIED` after the runner suppresses the Application Error dialog). `runnerFailureRules` identify the sandbox runner refusing or failing before it executes the command; consumers check these first and surface a sandbox infrastructure failure, never an ordinary task failure.
 
 ```ts type-equiv
 /**
@@ -137,6 +137,14 @@ interface ConfinedArgv {
    * union claims denials a given backend never produces.
    */
   denialSignatures: readonly string[]
+  /**
+   * Process exit codes that are denials even when stderr is empty. Windows ACL
+   * confined grandchildren (`git.exe`, `python.exe`) often die during DLL
+   * initialization (`STATUS_DLL_INIT_FAILED`) with no diagnostic line; the
+   * unsigned NTSTATUS and its signed 32-bit form both match. Omitted or empty
+   * on backends whose denials always appear on stderr.
+   */
+  denialExitCodes?: readonly number[]
   /**
    * Structured runner-failure evidence rules. Consumers require a matching
    * fatal stderr line (after informational exclusions) and any rule-specific
@@ -184,7 +192,7 @@ Abstract process-sandbox service. confine must return enforcing argv or fail clo
 abstract confine(argv: readonly string[], policy: SandboxPolicy): ConfinedArgv
 ```
 
-Source: [`packages/sandbox/sandbox/src/index.ts:158`](../../packages/sandbox/sandbox/src/index.ts)
+Source: [`packages/sandbox/sandbox/src/index.ts:166`](../../packages/sandbox/sandbox/src/index.ts)
 
 <a id="ctxsandboxpolicy--sandboxpolicyservice"></a>
 

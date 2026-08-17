@@ -67,6 +67,7 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
     mode: ConfinedSandboxMode
     enforcement: SandboxEnforcement
     denialSignatures: readonly string[]
+    denialExitCodes: readonly number[]
     runnerFailureRules: readonly RunnerFailureRule[]
     runnerProgram: string | undefined
     workdir: string
@@ -118,7 +119,14 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
     if (runnerFailure !== undefined) {
       throw new SandboxUnavailableError(mode, runnerFailure.detail)
     }
-    return { ...result, sandbox: { mode, denied: classifyDenial(result, confined.denialSignatures), enforcement: confined.enforcement } }
+    return {
+      ...result,
+      sandbox: {
+        mode,
+        denied: classifyDenial(result, confined.denialSignatures, confined.denialExitCodes),
+        enforcement: confined.enforcement,
+      },
+    }
   }
 
   override start(spec: ShellExecSpec): ShellProcess {
@@ -137,11 +145,12 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
       }
       throw error
     }
-    const { enforcement, denialSignatures, runnerFailureRules } = confined
+    const { enforcement, denialSignatures, denialExitCodes, runnerFailureRules } = confined
     this.processFacts.set(proc, {
       mode,
       enforcement,
       denialSignatures,
+      denialExitCodes: denialExitCodes ?? [],
       runnerFailureRules,
       runnerProgram: confined.argv[0],
       workdir: spec.workdir,
@@ -164,7 +173,7 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
         : classifyRunnerFailure(proc.exitCode, stderr, facts.runnerFailureRules) !== undefined
       proc.sandbox = {
         mode: facts.mode,
-        denied: !runnerFailed && matchesSignature(proc.exitCode, stderr, facts.denialSignatures),
+        denied: !runnerFailed && matchesSignature(proc.exitCode, stderr, facts.denialSignatures, facts.denialExitCodes),
         enforcement: facts.enforcement,
         ...(runnerFailed ? { runnerFailed } : {}),
       }

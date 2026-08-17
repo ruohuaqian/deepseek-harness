@@ -65,10 +65,15 @@ interface RunnerFailureMatch {
  * Classify a failed run against the selected backend's denial dialect.
  * @param result - settled foreground run.
  * @param signatures - case-insensitive denial substrings from the active wrap.
+ * @param denialExitCodes - optional NTSTATUS (or other) exits that are denials with empty stderr.
  * @returns whether the failed run matches that denial dialect.
  */
-export function classifyDenial(result: ShellRunResult, signatures: readonly string[]): boolean {
-  return matchesSignature(result.exitCode, result.stderr.text, signatures)
+export function classifyDenial(
+  result: ShellRunResult,
+  signatures: readonly string[],
+  denialExitCodes: readonly number[] = [],
+): boolean {
+  return matchesSignature(result.exitCode, result.stderr.text, signatures, denialExitCodes)
 }
 
 /**
@@ -106,14 +111,24 @@ export function classifyRunnerFailure(
 }
 
 /**
- * Match a non-zero exit against case-insensitive stderr signatures.
+ * Match a non-zero exit against case-insensitive stderr signatures or an
+ * explicit denial exit code (compared as unsigned 32-bit, so a signed
+ * NTSTATUS such as `-1073741502` matches `0xC0000142`).
  * @param exitCode - process exit code; null means signal termination.
  * @param stderr - collected stderr text.
  * @param signatures - substrings identifying the selected backend's dialect.
- * @returns whether this is a non-zero exit whose stderr matches a signature.
+ * @param denialExitCodes - exits that are denials even when stderr is empty.
+ * @returns whether this is a non-zero exit whose stderr or status matches.
  */
-export function matchesSignature(exitCode: number | null, stderr: string, signatures: readonly string[]): boolean {
+export function matchesSignature(
+  exitCode: number | null,
+  stderr: string,
+  signatures: readonly string[],
+  denialExitCodes: readonly number[] = [],
+): boolean {
   if (exitCode === null || exitCode === 0) return false
+  const unsigned = exitCode >>> 0
+  if (denialExitCodes.some(code => (code >>> 0) === unsigned)) return true
   const lowered = stderr.toLowerCase()
   return signatures.some(signature => lowered.includes(signature.toLowerCase()))
 }

@@ -163,6 +163,17 @@ export const FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000
 /** FORMAT_MESSAGE_IGNORE_INSERTS: skip insert-sequence substitution. */
 export const FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200
 
+// SetErrorMode flags (errhandlingapi.h / winbase.h): the process error mode
+// children inherit unless CreateProcess sets CREATE_DEFAULT_ERROR_MODE.
+/** SEM_FAILCRITICALERRORS: do not display the critical-error-handler message box. */
+export const SEM_FAILCRITICALERRORS = 0x0001
+/** SEM_NOGPFAULTERRORBOX: do not display the Windows Error Reporting dialog (Application Error / 0xC0000142). */
+export const SEM_NOGPFAULTERRORBOX = 0x0002
+/** SEM_NOOPENFILEERRORBOX: do not display the OpenFile message box when a file is missing. */
+export const SEM_NOOPENFILEERRORBOX = 0x8000
+/** Process error mode that suppresses Windows hard-error UI for this process and its inheriting children. */
+export const SILENT_HARD_ERROR_MODE = SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX
+
 // ---- error codes -----------------------------------------------------------
 
 /** ERROR_SUCCESS: the operation succeeded. */

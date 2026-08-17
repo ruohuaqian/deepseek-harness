@@ -212,6 +212,17 @@ const DENIAL_SIGNATURES = {
   runnerCommand: ['read-only file system', 'permission denied'],
 } as const satisfies Record<SelectedRunner['runner'] | 'runnerCommand', readonly string[]>
 
+/**
+ * NTSTATUS start-failure exits the windows-acl runner's confined children
+ * (and PowerShell-native grandchildren such as git.exe / python.exe) return
+ * when DLL init or the access check fails with no stderr. Unsigned values;
+ * classifiers compare `exitCode >>> 0`.
+ */
+const WINDOWS_ACL_DENIAL_EXIT_CODES = [
+  0xC0000142, // STATUS_DLL_INIT_FAILED — Application Error box unless SetErrorMode silenced it
+  0xC0000022, // STATUS_ACCESS_DENIED
+] as const
+
 /** The windows-acl runner's documented failure exit (its own RUNNER_FAILURE_EXIT contract, distinct from Landlock's 125). */
 const WINDOWS_ACL_RUNNER_FAILURE_EXIT = 127
 
@@ -328,6 +339,7 @@ export class LocalSandboxProvider extends SandboxProvider {
       argv: [...runnerArgv, '--', ...argv],
       enforcement: selected.enforcement,
       denialSignatures: DENIAL_SIGNATURES[selected.runner],
+      ...(selected.runner === 'windows-acl' ? { denialExitCodes: WINDOWS_ACL_DENIAL_EXIT_CODES } : {}),
       runnerFailureRules: RUNNER_FAILURE_RULES[selected.runner],
     }
   }

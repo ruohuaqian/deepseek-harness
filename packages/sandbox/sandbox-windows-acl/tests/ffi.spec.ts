@@ -14,6 +14,7 @@ import { Win32Error } from '../src/errors.ts'
 import {
   allocBytes, decodePtr, decodePtrAt, errorText, getTempPath,
   isInvalidHandle, isNullPtr, sameSidAt, throwLastError, throwWin32,
+  applySilentHardErrorMode,
 } from '../src/ffi.ts'
 import type { NativePtr, Win32Bindings } from '../src/ffi.ts'
 import * as abi from '../src/win32-abi.ts'
@@ -198,5 +199,20 @@ describe('sameSidAt bounded comparison', () => {
     }
     expect(sameSidAt(left, 4, right, 4)).toBe(true)
     expect(sameSidAt(left, 0, right, 0)).toBe(false) // the differing prefixes are not a matching SID
+  })
+})
+
+describe('SILENT_HARD_ERROR_MODE', () => {
+  it('combines the three SetErrorMode flags that suppress Windows hard-error UI', () => {
+    expect(abi.SILENT_HARD_ERROR_MODE).toBe(
+      abi.SEM_FAILCRITICALERRORS | abi.SEM_NOGPFAULTERRORBOX | abi.SEM_NOOPENFILEERRORBOX,
+    )
+    expect(abi.SILENT_HARD_ERROR_MODE).toBe(0x8003)
+  })
+
+  it('applySilentHardErrorMode writes that mask onto the process', () => {
+    const setErrorMode = vi.fn(() => 0)
+    applySilentHardErrorMode({ setErrorMode })
+    expect(setErrorMode).toHaveBeenCalledWith(abi.SILENT_HARD_ERROR_MODE)
   })
 })

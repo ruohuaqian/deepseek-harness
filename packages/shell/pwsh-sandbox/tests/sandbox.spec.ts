@@ -146,6 +146,13 @@ describe('helpers (pure)', () => {
       expect(matchesSignature(0, 'access is denied', ['access is denied'])).toBe(false)
       expect(matchesSignature(null, 'access is denied', ['access is denied'])).toBe(false)
     })
+
+    it('matches denialExitCodes with empty stderr, including the signed NTSTATUS form', () => {
+      const statusDllInitFailed = 0xC0000142
+      expect(matchesSignature(statusDllInitFailed, '', ['access is denied'], [statusDllInitFailed])).toBe(true)
+      expect(matchesSignature(statusDllInitFailed | 0, '', ['access is denied'], [statusDllInitFailed])).toBe(true)
+      expect(matchesSignature(1, '', ['access is denied'], [statusDllInitFailed])).toBe(false)
+    })
   })
 })
 
@@ -277,6 +284,31 @@ describe.skipIf(!pwshAvailable())('SandboxPwshExecutor', () => {
     }))
     await expect(executor.run(executor.resolve({ command: 'echo never-runs', sandboxPolicy: RO })))
       .rejects.toThrow(SandboxUnavailableError)
+  }, 30_000)
+
+  it('empty-stderr NTSTATUS exits stamp denied when the wrap lists denialExitCodes', async () => {
+    const { executor } = await setup(() => ({
+      argv: [process.execPath, '-e', 'process.exit(0xC0000142)'],
+      enforcement: 'partial',
+      denialSignatures: ['access is denied'],
+      denialExitCodes: [0xC0000142],
+      runnerFailureRules: [],
+    }))
+    const result = await executor.run(executor.resolve({ command: 'git status', sandboxPolicy: RO }))
+    expect(result.sandbox).toEqual({ mode: 'read-only', denied: true, enforcement: 'partial' })
+  }, 30_000)
+
+  it('background NTSTATUS exits stamp denied facts at settlement', async () => {
+    const { executor } = await setup(() => ({
+      argv: [process.execPath, '-e', 'process.exit(0xC0000142)'],
+      enforcement: 'partial',
+      denialSignatures: ['access is denied'],
+      denialExitCodes: [0xC0000142],
+      runnerFailureRules: [],
+    }))
+    const proc = executor.start(executor.resolve({ command: 'git status', sandboxPolicy: RO }))
+    await proc.done
+    expect(proc.sandbox).toEqual({ mode: 'read-only', denied: true, enforcement: 'partial' })
   }, 30_000)
 
   it('background confined runs stamp clean facts at settlement', async () => {

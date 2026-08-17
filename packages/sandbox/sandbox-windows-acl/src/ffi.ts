@@ -133,6 +133,11 @@ export interface Win32Bindings {
   // runner can clean up grants after the child exits.
   setConsoleCtrlHandler(handler: null, add: number): number
   getStdHandle(stdHandle: number): NativePtr
+  /**
+   * SetErrorMode: process-wide error mode children inherit. Thread-local
+   * SetThreadErrorMode does not propagate to CreateProcess children.
+   */
+  setErrorMode(mode: number): number
 }
 
 const PVOID: Ptr = koffi.pointer('void')
@@ -370,6 +375,15 @@ export function decodeProcessInfo(processInfo: NativePtr): ProcessInfoOutput {
 
 let cached: Win32Bindings | undefined
 
+/**
+ * Suppress Windows hard-error UI for this process. Children inherit the
+ * process error mode; SetThreadErrorMode does not propagate to CreateProcess.
+ * @param api - the binding table (only `setErrorMode` is used).
+ */
+export function applySilentHardErrorMode(api: Pick<Win32Bindings, 'setErrorMode'>): void {
+  api.setErrorMode(abi.SILENT_HARD_ERROR_MODE)
+}
+
 function bindings(): Win32Bindings {
   if (cached !== undefined) return cached
   const kernel32 = koffi.load('kernel32.dll')
@@ -427,7 +441,13 @@ function bindings(): Win32Bindings {
     terminateProcess: bind(kernel32, 'TerminateProcess', 'int', [PVOID, 'uint32']),
     setConsoleCtrlHandler: bind(kernel32, 'SetConsoleCtrlHandler', 'int', [PVOID, 'int']),
     getStdHandle: bind(kernel32, 'GetStdHandle', PVOID, ['int']),
+    setErrorMode: bind(kernel32, 'SetErrorMode', 'uint32', ['uint32']),
   } as unknown as Win32Bindings
+  // Children inherit this process error mode. Without it, a confined
+  // git.exe/python.exe that dies at DLL init shows a blocking Application
+  // Error dialog instead of a quiet NTSTATUS exit the sandbox classifier can
+  // turn into a permission denial.
+  applySilentHardErrorMode(cached)
   return cached
 }
 

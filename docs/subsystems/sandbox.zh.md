@@ -115,7 +115,7 @@ interface RunnerFailureRule {
 }
 ```
 
-`ConfinedArgv` 是消费方实际 spawn 的内容。除了替换后的 argv，它还携带后端的强制执行事实和两种正交的 stderr 分类器。`denialSignatures` 用于识别沙箱正常工作时受限命令被阻止的情况。`runnerFailureRules` 用于识别沙箱 runner 在执行命令之前拒绝或失败的情况；消费方应先检查后者，将其作为沙箱基础设施故障上报，而非普通任务失败。
+`ConfinedArgv` 是消费方实际 spawn 的内容。除了替换后的 argv，它还携带后端的强制执行事实和正交分类器。`denialSignatures` 用于识别沙箱正常工作时受限命令被阻止的情况。`denialExitCodes` 用于在进程以后端特定状态码退出且 stderr 为空时识别同一类拒绝（Windows ACL 在 runner 抑制 Application Error 对话框之后的 `STATUS_DLL_INIT_FAILED` / `STATUS_ACCESS_DENIED`）。`runnerFailureRules` 用于识别沙箱 runner 在执行命令之前拒绝或失败的情况；消费方应先检查后者，将其作为沙箱基础设施故障上报，而非普通任务失败。
 
 ```ts type-equiv
 /**
@@ -137,6 +137,14 @@ interface ConfinedArgv {
    * union claims denials a given backend never produces.
    */
   denialSignatures: readonly string[]
+  /**
+   * Process exit codes that are denials even when stderr is empty. Windows ACL
+   * confined grandchildren (`git.exe`, `python.exe`) often die during DLL
+   * initialization (`STATUS_DLL_INIT_FAILED`) with no diagnostic line; the
+   * unsigned NTSTATUS and its signed 32-bit form both match. Omitted or empty
+   * on backends whose denials always appear on stderr.
+   */
+  denialExitCodes?: readonly number[]
   /**
    * Structured runner-failure evidence rules. Consumers require a matching
    * fatal stderr line (after informational exclusions) and any rule-specific
@@ -184,7 +192,7 @@ Abstract process-sandbox service. confine must return enforcing argv or fail clo
 abstract confine(argv: readonly string[], policy: SandboxPolicy): ConfinedArgv
 ```
 
-Source: [`packages/sandbox/sandbox/src/index.ts:158`](../../packages/sandbox/sandbox/src/index.ts)
+Source: [`packages/sandbox/sandbox/src/index.ts:166`](../../packages/sandbox/sandbox/src/index.ts)
 
 <a id="ctxsandboxpolicy--sandboxpolicyservice"></a>
 
