@@ -9,6 +9,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WebBootGraph, ClientModuleRegistry } from '@deepseek-ai/dsh-client-modules'
 import type { WebRoute, WebServer } from '@deepseek-ai/dsh-host-webserver'
+import type { IncomingMessage } from 'node:http'
 import { apply, Config, EVENTS_ENDPOINT, inject } from '../src/index.ts'
 
 const POLL_MS = 20
@@ -68,6 +69,38 @@ function fakeHttpServer(routes: WebRoute[]): WebServer {
     port: 0,
   }
   return fake as WebServer
+}
+
+/** Named-route response double: records writeHead/write/end for the SSE handler. */
+function fakeSseResponse(): {
+  statusCode: number
+  headers: Record<string, string>
+  chunks: unknown[]
+  ended: boolean
+} & import('node:http').ServerResponse {
+  const headers: Record<string, string> = {}
+  const chunks: unknown[] = []
+  const fake = {
+    statusCode: 0,
+    headers,
+    chunks,
+    ended: false,
+    writeHead(status: number, written?: Record<string, string>) {
+      fake.statusCode = status
+      if (written !== undefined) Object.assign(headers, written)
+    },
+    write(chunk: unknown) {
+      chunks.push(chunk)
+      return true
+    },
+    end(chunk?: unknown) {
+      if (chunk !== undefined) chunks.push(chunk)
+      fake.ended = true
+    },
+    on() { return fake },
+    destroy() {},
+  }
+  return fake as typeof fake & import('node:http').ServerResponse
 }
 
 async function mount(clientModuleHost: FakeHost, webServer: WebServer) {
@@ -199,6 +232,30 @@ describe('hmr node half', () => {
     const fiber = await mount(clientModuleHost, fakeHttpServer([]))
 
     await vi.waitFor(() => { expect(clientModuleHost.rebuiltCalls).toEqual(['pkg-a', 'pkg-a']) }, { timeout: 3_000 })
+    await fiber.dispose()
+  })
+
+  it('keeps /plugins/events as an EventSource channel and rejects document navigation', async () => {
+    const routes: WebRoute[] = []
+    const fiber = await mount(fakeClientModuleHost(new Map()), fakeHttpServer(routes))
+    const handler = routes[0]?.handler
+    expect(handler).toBeDefined()
+
+    const html = fakeSseResponse()
+    handler!({ method: 'GET', headers: { accept: 'text/html' } } as IncomingMessage, html)
+    expect(html.statusCode).toBe(406)
+    expect(html.ended).toBe(true)
+
+    const missing = fakeSseResponse()
+    handler!({ method: 'GET', headers: {} } as IncomingMessage, missing)
+    expect(missing.statusCode).toBe(406)
+
+    const sse = fakeSseResponse()
+    handler!({ method: 'GET', headers: { accept: 'text/event-stream' } } as IncomingMessage, sse)
+    expect(sse.statusCode).toBe(200)
+    expect(sse.headers['content-type']).toBe('text/event-stream')
+    expect(sse.chunks.some(chunk => String(chunk).includes(': connected'))).toBe(true)
+
     await fiber.dispose()
   })
 })

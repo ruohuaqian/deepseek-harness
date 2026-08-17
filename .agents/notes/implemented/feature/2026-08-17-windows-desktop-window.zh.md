@@ -30,7 +30,7 @@ Status: implemented
 
 启动路径是 `pnpm desktop`。首次运行需要网络，以便在 `desktop/` 内执行 `npm install`。只在浏览器里使用 `dsh web` 的操作者不受影响。
 
-HTTP 宿主仍绑定 loopback，因此窗口打开时浏览器也可以打开同一 URL。该壳层不实现分层说明中点名的 IPC 载体、native 目录选择器提供方，或 `file://` dist 加载；那些仍属于未来的 Electron 客户端工作。
+HTTP 宿主仍绑定 loopback，因此窗口打开时浏览器也可以打开同一 URL。`loadURL` 之后，壳层取消后续的窗口内导航：同源路径变化会整页重载这个 SPA，浏览器自动化若重试该导航就会表现为刷新循环（[自动化导航锁定](../bug-fix/2026-08-17-gui-automation-navigation-lock.md)）。跨源 http(s) 链接在系统浏览器中打开。该壳层不实现分层说明中点名的 IPC 载体、native 目录选择器提供方，或 `file://` dist 加载；那些仍属于未来的 Electron 客户端工作。
 
 ## Testing
 

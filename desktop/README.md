@@ -30,6 +30,6 @@ Set `DSH_DESKTOP_DEVTOOLS=1` to open Chromium DevTools.
 
 | Path | Role |
 |---|---|
-| `main.mjs` | Electron main process: spawn `dsh web`, create the window, load the ready URL. |
+| `main.mjs` | Electron main process: spawn `dsh web`, create the window, load the ready URL, and keep that document from navigating. |
 | `splash.html` | Loading page shown until the host prints `dsh web: http://…`. |
 | `icon.svg` / `icon.ico` | Whale mark used as the window and taskbar icon. |

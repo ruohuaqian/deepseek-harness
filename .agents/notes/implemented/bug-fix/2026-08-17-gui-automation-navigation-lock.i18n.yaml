@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-17-gui-automation-navigation-lock.md
+2026-08-17-gui-automation-navigation-lock.md: a9c80140129da128700e1cf8ed63e0ebcf71023b
+2026-08-17-gui-automation-navigation-lock.zh.md: 178c79bca5ac6f5bb512c38773628795b04fb7ea

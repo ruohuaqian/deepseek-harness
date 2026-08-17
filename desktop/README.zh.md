@@ -30,6 +30,6 @@ pnpm desktop -- --port 3080
 
 | Path | Role |
 |---|---|
-| `main.mjs` | Electron 主进程：spawn `dsh web`、创建窗口、加载就绪 URL。 |
+| `main.mjs` | Electron 主进程：spawn `dsh web`、创建窗口、加载就绪 URL，并阻止该文档再导航。 |
 | `splash.html` | 在宿主打印 `dsh web: http://…` 之前显示的加载页。 |
 | `icon.svg` / `icon.ico` | 用作窗口与任务栏图标的鲸鱼标志。 |

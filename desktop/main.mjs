@@ -139,17 +139,58 @@ function createWindow() {
   return window
 }
 
+/**
+ * After the GUI document is loaded, the shell must not navigate. Same-origin
+ * path changes full-reload this SPA; browser-automation retries of that
+ * navigation look like a refresh loop. Cross-origin http(s) opens in the
+ * system browser instead.
+ * @param origin - loaded GUI origin
+ * @param target - requested navigation URL
+ * @returns whether to hand the URL to the system browser
+ */
+function shouldOpenExternally(origin, target) {
+  try {
+    const parsed = new URL(target)
+    if (parsed.origin === origin) return false
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Cancel in-window navigation and, for a different http(s) origin, open it
+ * outside the shell.
+ * @param event - Electron navigation event that supports preventDefault
+ * @param origin - loaded GUI origin
+ * @param target - requested navigation URL
+ */
+function denyShellNavigation(event, origin, target) {
+  event.preventDefault()
+  if (shouldOpenExternally(origin, target)) void shell.openExternal(target)
+}
+
 function attachNavigationGuard(window, url) {
   const origin = new URL(url).origin
   window.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (target.startsWith(origin)) return { action: 'allow' }
-    void shell.openExternal(target)
+    if (shouldOpenExternally(origin, target)) void shell.openExternal(target)
     return { action: 'deny' }
   })
   window.webContents.on('will-navigate', (event, target) => {
-    if (target.startsWith(origin) || target.startsWith('file:')) return
-    event.preventDefault()
-    void shell.openExternal(target)
+    denyShellNavigation(event, origin, target)
+  })
+}
+
+/**
+ * Server-side redirects during the first loadURL must complete. Attach this
+ * only after that document has finished so a later redirect cannot replace it.
+ * @param window - the GUI BrowserWindow
+ * @param url - loaded GUI URL
+ */
+function attachRedirectGuard(window, url) {
+  const origin = new URL(url).origin
+  window.webContents.on('will-redirect', (event, target) => {
+    denyShellNavigation(event, origin, target)
   })
 }
 
@@ -170,6 +211,7 @@ if (!locked) {
     const url = await startHost(process.argv.slice(2))
     attachNavigationGuard(window, url)
     await window.loadURL(url)
+    attachRedirectGuard(window, url)
   }).catch((error) => {
     console.error(error instanceof Error ? error.message : error)
     stopHost()

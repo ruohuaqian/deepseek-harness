@@ -9,7 +9,7 @@
  * chain stays idle.
  */
 import { statSync } from 'node:fs'
-import type { ServerResponse } from 'node:http'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 // Empty type imports carry the clientModuleHost/webServer Context merges.
@@ -40,6 +40,20 @@ export const Config: z<Config> = z.object({
 /** Serialize one frame as an SSE data line. */
 function sseData(frame: PluginsEventFrame): string {
   return `data: ${JSON.stringify(frame)}\n\n`
+}
+
+/**
+ * EventSource sets `Accept: text/event-stream`. A document navigation to this
+ * path would otherwise hang on an endless SSE body, which browser automation
+ * then retries as a refresh loop.
+ * @param req - the incoming named-route request.
+ * @returns whether the caller is an EventSource (or compatible) subscriber.
+ */
+function isEventSourceRequest(req: IncomingMessage): boolean {
+  const accept = req.headers.accept
+  if (accept === undefined) return false
+  const joined = Array.isArray(accept) ? accept.join(',') : accept
+  return joined.includes('text/event-stream')
 }
 
 interface WatchedBundle {
@@ -171,6 +185,12 @@ export function apply(ctx: Context, config: Config): void {
         // global 405 semantics for non-GET hits on this endpoint.
         if (req.method !== 'GET' && req.method !== 'HEAD') {
           res.writeHead(405)
+          res.end()
+          return
+        }
+        // Document navigation would hang on the endless SSE body (406, not 200).
+        if (!isEventSourceRequest(req)) {
+          res.writeHead(406)
           res.end()
           return
         }
