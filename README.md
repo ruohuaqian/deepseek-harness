@@ -1,6 +1,8 @@
-# DeepSeek Harness
+# DeepSeek Harness — Windows window edition
 
 English | [中文](README.zh.md)
+
+This repository is a **Windows window edition** fork of [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness): `pnpm desktop` opens the Web UI in a local Electron window instead of a browser tab.
 
 DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
 
@@ -11,6 +13,20 @@ It uses an architecture where **everything is a plugin**, and is powered by [Cor
 DeepSeek Harness is currently in _developer preview_ and is iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
 
 ## Run
+
+### Windows window
+
+From this repository, after install and Web build:
+
+```sh
+git clone https://github.com/ruohuaqian/deepseek-harness.git
+cd deepseek-harness
+pnpm install
+pnpm run build
+pnpm desktop
+```
+
+The first `pnpm desktop` downloads Electron into `desktop/`. Closing the window stops the host. See [desktop/README.md](desktop/README.md).
 
 ### Run from `npm`
 
@@ -24,10 +40,10 @@ The command starts the Web UI, served at `http://127.0.0.1:3080` by default. See
 
 ### Run from source
 
-To run from a repository checkout:
+To run the same Web UI in a browser from this checkout:
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
+git clone https://github.com/ruohuaqian/deepseek-harness.git
 cd deepseek-harness
 pnpm install
 pnpm run build

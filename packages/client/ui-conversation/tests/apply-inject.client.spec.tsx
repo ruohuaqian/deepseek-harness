@@ -147,6 +147,22 @@ describe('conversation slot inject API', () => {
     expect(b.runtime.sessions.calls).toContainEqual({
       method: 'fork', args: [{ sessionId: ROOT, atSeq: 17, increaseTitle: true }],
     })
+    chatView.injected.editAt(4, 'rewrite me')
+    await vi.waitFor(() => {
+      expect(b.runtime.sessions.calls).toContainEqual({
+        method: 'fork',
+        args: [{ sessionId: ROOT, atSeq: 4, cut: 'before-turn' }],
+      })
+    })
+    expect(b.conversationApi(ROOT).injected.consumeEditDraft()).toBe('rewrite me')
+    expect(b.conversationApi(ROOT).injected.consumeEditDraft()).toBe('rewrite me')
+    expect(b.runtime.workspaces.calls).not.toContainEqual({ method: 'archiveSession', args: [ROOT] })
+    const fork = vi.spyOn(b.runtime.sessions, 'fork').mockRejectedValueOnce(new Error('fork failed'))
+    chatView.injected.editAt(8, 'should not stash')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(b.conversationApi(ROOT).injected.consumeEditDraft()).toBe('rewrite me')
+    fork.mockRestore()
     await b.runtime.dispose()
   })
 

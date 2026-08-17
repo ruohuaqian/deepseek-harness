@@ -52,6 +52,7 @@ examples/    Runnable cordis.yml leaves over packages/examples bundles (see exam
 docs/        architecture, generated catalogs, postmortems, cookbook (see docs/AGENTS.md)
 scripts/     repo gates and generators
 website/     VitePress projection of selected bilingual docs/ sources
+desktop/     Local Electron window around `dsh web` (unpublished; see desktop/README.md)
 ```
 
 Package groups: [packages/README.md](packages/README.md).

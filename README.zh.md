@@ -1,6 +1,8 @@
-# DeepSeek Harness
+# DeepSeek Harness — Windows 窗口版
 
 [English](README.md) | 中文
+
+本仓库是 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的 **Windows 窗口版** fork：用 `pnpm desktop` 在本地 Electron 窗口中打开 Web UI，而不是浏览器标签页。
 
 DeepSeek Harness（`dsh`）是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness（智能体框架）。
 
@@ -11,6 +13,20 @@ DeepSeek Harness（`dsh`）是由 [DeepSeek AI](https://deepseek.com) 开发的�
 DeepSeek Harness 目前处于 _开发者预览_ 阶段，正在快速迭代。**未来将出现破坏兼容性的变更。**
 
 ## 运行
+
+### Windows 窗口
+
+在本仓库完成安装与 Web 构建之后：
+
+```sh
+git clone https://github.com/ruohuaqian/deepseek-harness.git
+cd deepseek-harness
+pnpm install
+pnpm run build
+pnpm desktop
+```
+
+首次 `pnpm desktop` 会把 Electron 下载到 `desktop/`。关闭窗口会停止宿主。详见 [desktop/README.md](desktop/README.md)。
 
 ### 通过 `npm` 运行
 
@@ -24,10 +40,10 @@ npx @deepseek-ai/dsh web
 
 ### 从源码运行
 
-如需从仓库源码运行：
+如需在本仓库以浏览器打开同一套 Web UI：
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
+git clone https://github.com/ruohuaqian/deepseek-harness.git
 cd deepseek-harness
 pnpm install
 pnpm run build

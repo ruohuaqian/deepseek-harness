@@ -321,20 +321,25 @@ export interface SessionsApi {
    * RPC error with code command-error; an unrecognized name is an RPC error with code unknown-command.
    */
   /**
-   * Forks a new session from a completed-turn prefix of the source. `atSeq`
-   * anchors the cut: the boundary is the first `turn/end` at or after it
-   * (a message's fork button passes the message seq, so the fork includes
+   * Forks a new session from a prefix of the source. Default `cut` (omitted)
+   * is inclusive-turn: `atSeq` anchors the first `turn/end` at or after it
+   * (a message's branch button passes the message seq, so the fork includes
    * that whole turn); a boundary past the log end, or an omitted `atSeq`,
-   * falls back to the source's last completed turn. An in-log anchor whose
-   * turn is still open fails with `fork-unavailable` instead of clipping to
-   * an earlier turn. The child inherits the source cwd, latest logged model
+   * falls back to the source's last completed turn. An in-log inclusive
+   * anchor whose turn is still open fails with `fork-unavailable` instead of
+   * clipping to an earlier turn.
+   *
+   * `cut: 'before-turn'` drops the turn that contains `atSeq` (required): the
+   * seed ends immediately before that turn's `turn/start`, so an open or
+   * completed turn can be left on the source. No prior completed turn yields
+   * an empty seed. The child inherits the source cwd, latest logged model
    * target and `parentSessionId` lineage; the seed prefix carries the source
    * title. Reading the source uses attached state or persistence inspection
    * without acquiring an Agent. Workspace attachment follows the source
    * directly, or the nearest workspace-owning ancestor when the source is a
    * subagent.
    */
-  fork(request: RpcRequest<{ sessionId: SessionId; atSeq?: number }>):
+  fork(request: RpcRequest<{ sessionId: SessionId; atSeq?: number; cut?: 'before-turn' }>):
   Promise<RpcResponse<{ sessionId: SessionId }>>
 
   /**

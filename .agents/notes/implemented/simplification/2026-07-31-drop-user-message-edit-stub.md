@@ -24,4 +24,4 @@ Reintroduce the control together with the capability: a client mutation that edi
 
 ## Consequences
 
-Web offers no way to correct a sent message; branching from the message is the nearest available gesture. Reintroduction is a UI-only change once the mutation exists, since the row composes its actions from props.
+Web then offered no way to correct a sent message; branching from the message was the nearest available gesture. Reintroduction is a UI-only change once the mutation exists, since the row composes its actions from props. That capability now ships: Edit on a settled user bubble confirms, rewinds the current conversation to before the turn, and prefills the composer ([sent-message re-edit](../feature/2026-08-17-sent-user-message-re-edit.md)).

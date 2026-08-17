@@ -361,6 +361,12 @@ export interface ChatNodeOwnerProps {
   openFile: (path: string) => void
   inspectCall: (callId: CallId) => void
   forkAt: (seq: number) => void
+  /**
+   * Re-edit a settled user message: fork before its turn, open the child in
+   * the source's list slot under the same title, archive the source, and
+   * prefill the composer with `text`.
+   */
+  editAt: (seq: number, text: string) => void
   /** Resolve a session-authorized historical image for inline display. */
   loadImage: (attachment: ImageAttachmentRef) => Promise<string>
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
@@ -436,6 +442,12 @@ export interface ConversationSessionInjected {
   releaseSessionImages: (sessionId: SessionId) => void
   /** Bind the input machine's draft persistence mirror to the session store. */
   bindDraftMirror: (write: (text: string) => void) => () => void
+  /**
+   * Composer prefill stashed by a sent-message edit for this session.
+   * Defined (including empty) means this session was opened for re-edit.
+   * Reading does not consume the value: the session shell keeps the draft.
+   */
+  consumeEditDraft: () => string | undefined
 }
 
 /** Business callbacks injected into the strict session header seat. */
@@ -698,6 +710,12 @@ export interface ChatViewInjected {
   }
   /** Fork through the completed turn ending at the eligible message `seq`, then open the child. */
   forkAt: (seq: number) => void
+  /**
+   * Re-edit the settled user message at `seq`: confirm already happened in
+   * the bubble; fork before that turn, replace the source listing with the
+   * child, and prefill `text`.
+   */
+  editAt: (seq: number, text: string) => void
   /**
    * Prose file-mention vocabulary for one closing message, from the optional
    * {@link ChatFileMentions} service (resolved lazily per call, so composing

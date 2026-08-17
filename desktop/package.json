@@ -1,0 +1,15 @@
+{
+  "name": "dsh-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Electron window around dsh web",
+  "type": "module",
+  "main": "main.mjs",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "37.2.6"
+  }
+}

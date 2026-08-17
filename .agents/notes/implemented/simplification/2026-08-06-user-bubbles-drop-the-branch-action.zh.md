@@ -24,4 +24,4 @@ user 与 steering 气泡不再渲染分支操作。`MessageItem` 移除其 fork 
 
 ## 后果
 
-唯一的 fork 入口是已定稿回答下方启用的分支控件。在任何节点跟上其消息之前就被取消的轮次失去了它唯一的入口，从此没有 fork 点，与尾部是无内容 interrupted 节点的轮次一致。`apps/web` 的 aria golden 全部移除 user 气泡的禁用分支行及其隐藏说明文本。包测试钉住：user 与 steering 气泡不渲染分支控件，steering 作为尾部的轮次让叙述节点的控件保持不可用。
+唯一的 fork 入口是已定稿回答下方启用的分支控件。在任何节点跟上其消息之前就被取消的轮次失去了它唯一的入口，从此没有 fork 点，与尾部是无内容 interrupted 节点的轮次一致。`apps/web` 的 aria golden 全部移除 user 气泡的禁用分支行及其隐藏说明文本。包测试钉住：user 与 steering 气泡不渲染分支控件，steering 作为尾部的轮次让叙述节点的控件保持不可用。原先留给「切在消息之前」的位置现由已发送消息的编辑占用：确认后把当前对话撤回到不含该提示词之处并预填输入框（[已发送消息重编辑](../feature/2026-08-17-sent-user-message-re-edit.md)）。

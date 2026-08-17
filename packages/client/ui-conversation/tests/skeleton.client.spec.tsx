@@ -99,6 +99,10 @@ function mount(
     composerBlock?: { reason: string }
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
+    /** One-shot composer prefill from a sent-message edit. */
+    consumeEditDraft?: () => string | undefined
+    /** Draft already in the input machine before ConversationSession mounts. */
+    initialDraft?: string
   } = {},
 ) {
   const root = sid('root')
@@ -121,6 +125,9 @@ function mount(
   const chat = createChatStore().create()
   chat.actions.setDraft('ordinary draft')
   const { wiring, sink } = fakeWiring()
+  if (options.initialDraft !== undefined && options.initialDraft !== '') {
+    wiring.actions.setDraft(options.initialDraft)
+  }
   const useInput = bindSnapshotSelector(wiring.state)
   const inputActions = wiring.actions
   const stop = vi.fn()
@@ -181,6 +188,7 @@ function mount(
           views={views}
           releaseSessionImages={vi.fn()}
           bindDraftMirror={write => wiring.bindMirror(write)}
+          consumeEditDraft={options.consumeEditDraft ?? (() => undefined)}
         />
       )
     }
@@ -253,6 +261,7 @@ function mount(
   return {
     view, chat, sink, retargetWorkspace, session, slotCalls, seatOwners, open,
     pickerOwner: () => pickerOwner,
+    inputDraft: () => wiring.state.getSnapshot().draft,
     rerender: () => { view.rerender(<ConversationRoot {...props} />) },
   }
 }
@@ -494,5 +503,27 @@ describe('ConversationRoot resident composer', () => {
     }))
     expect(b.view.getByRole('alert').textContent).toContain('Message send failed (offline)')
     expect(b.view.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+
+  it('seeds the composer from a pending sent-message edit instead of the stored draft', () => {
+    const b = mount(conversationSnapshot(), undefined, undefined, {
+      consumeEditDraft: () => 'rewritten prompt',
+    })
+    expect(b.inputDraft()).toBe('rewritten prompt')
+  })
+
+  it('an empty sent-message edit draft does not restore the stored draft', () => {
+    const b = mount(conversationSnapshot(), undefined, undefined, {
+      consumeEditDraft: () => '',
+    })
+    expect(b.inputDraft()).toBe('')
+  })
+
+  it('does not clobber a draft already in the composer with the pending edit text', () => {
+    const b = mount(conversationSnapshot(), undefined, undefined, {
+      consumeEditDraft: () => 'rewritten prompt',
+      initialDraft: 'already typed',
+    })
+    expect(b.inputDraft()).toBe('already typed')
   })
 })
