@@ -12,9 +12,9 @@ Web GUI 持有长寿命的 EventSource（`/plugins/events`）和 WebSocket 流�
 
 三处所有者共同闭合这条回路。
 
-未发布的桌面壳层在 `loadURL` 之后取消窗口内导航：`will-navigate` 以及（首份文档加载完成后的）`will-redirect` 始终 `preventDefault`。跨源 http(s) 在系统浏览器中打开。`setWindowOpenHandler` 拒绝所有弹窗，包括同源复制一份 GUI。[桌面窗口说明](../feature/2026-08-17-windows-desktop-window.md) 仍负责该 Electron 装配。
+未发布的桌面壳层在 `loadURL` 之后取消窗口内导航：`will-navigate` 以及（首份文档加载完成后的）`will-redirect` 始终 `preventDefault`，并且不调用 `openExternal`。OpenCLI 把被取消的 CDP goto 归为可重试的目标导航（约 200ms）。若把每次重试交给系统浏览器，该 URL 会被反复重载，agent 就只能读到加载中的快照。`setWindowOpenHandler` 仍拒绝所有弹窗，并对不同的 http(s) 源在系统浏览器中至多每五秒打开一次。[桌面窗口说明](../feature/2026-08-17-windows-desktop-window.md) 仍负责该 Electron 装配。
 
-`app:web-surface` 禁止用浏览器自动化或外部打开器打开、绑定、导航或重载此 GUI URL，并要求模型在单独的自有浏览器会话中驱动其他站点。`DSH_WEB_URL` 的描述写明同一点。[GUI 反馈回路说明](2026-07-28-web-gui-feedback-loop.md) 仍负责为何发布该 URL。
+`app:web-surface` 禁止用浏览器自动化或外部打开器打开、绑定、导航或重载此 GUI URL，并要求模型在单独的自有浏览器会话中驱动其他站点。打开第三方 URL 之后，不得再次打开或重载该 URL；加载中的快照意味着等待。`DSH_WEB_URL` 的描述写明 GUI 身份不是浏览目标。[GUI 反馈回路说明](2026-07-28-web-gui-feedback-loop.md) 仍负责为何发布该 URL。
 
 没有 `Accept: text/event-stream` 的 `GET /plugins/events` 返回 406，因此文档导航无法挂在该流上。
 
@@ -26,9 +26,11 @@ Web GUI 持有长寿命的 EventSource（`/plugins/events`）和 WebSocket 流�
 
 **只改提示词。** 若已绑定的会话瞄准 `dsh web` 的 Chrome 标签页，页面仍会刷新。提示词必要但不够；壳层锁定和 406 覆盖机械重试。
 
+**把被取消的主框架导航交给 `shell.openExternal`。** OpenCLI 约每 200ms 重试被取消的 CDP goto。每次 `openExternal` 都会在系统浏览器中重载该 URL，于是 agent 只能读到加载中的快照。用户点击的 `target=_blank` 链接仍走 `setWindowOpenHandler`。
+
 ## 后果
 
-从 dsh 会话用 OpenCLI 等工具 `browser open` 第三方站点时，应使用单独的自有浏览器会话；Electron GUI 留在已加载的文档上。忽略提示词的操作者仍可绑定或重载 GUI 的 Chrome 标签页。Electron 上的 CDP `Page.reload` 并不总是以 `will-navigate` 送达；该路径仍由提示词覆盖。
+从 dsh 会话用 OpenCLI 等工具 `browser open` 第三方站点时，应使用单独的自有浏览器会话；Electron GUI 留在已加载的文档上。被取消的主框架导航不会在系统浏览器中再次打开该站点。忽略提示词的操作者仍可绑定或重载 GUI 的 Chrome 标签页。Electron 上的 CDP `Page.reload` 并不总是以 `will-navigate` 送达；该路径仍由提示词覆盖。
 
 ## 测试
 

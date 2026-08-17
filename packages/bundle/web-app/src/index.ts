@@ -99,7 +99,7 @@ function webSurfacePrompt(webUrl: string): string {
   return `You are interacting with the user through the DeepSeek Harness Web GUI at ${webUrl}. `
     + 'When the user refers to "this page", "this GUI", or "this app" without naming another target, they mean this GUI. '
     + 'The browser provides no implicit DOM, route, or screenshot context. '
-    + 'Do not open, bind, navigate, or reload this GUI URL with browser automation or an external opener; that replaces or refreshes the user\'s live page. Drive other sites in a separate owned browser session. '
+    + 'Do not open, bind, navigate, or reload this GUI URL with browser automation or an external opener; that replaces or refreshes the user\'s live page. Drive other sites in a separate owned browser session. After opening a third-party URL, do not open or reload it again; a loading snapshot means wait, not another navigation. '
     + updateContract
     + 'Starting another server does not update this GUI. '
     + 'The apps/web Vite entry builds the shell but is not a standalone application because only dsh web injects window.__DSH_BOOT__. '

@@ -30,7 +30,7 @@ The shell is not a pnpm workspace member and is not a dsh release member. Electr
 
 `pnpm desktop` is the launch path. The first run needs network access for `npm install` inside `desktop/`. Operators who only use `dsh web` in a browser are unchanged.
 
-The HTTP host still binds loopback, so a browser can open the same URL while the window is up. After `loadURL`, the shell cancels further in-window navigation: same-origin path changes would full-reload the SPA, and browser automation that retries that navigation looks like a refresh loop ([automation navigation lock](../bug-fix/2026-08-17-gui-automation-navigation-lock.md)). Cross-origin http(s) links open in the system browser. The shell does not implement the IPC carrier, native directory-picker provider, or `file://` dist loading named in the layering note; those remain future Electron-client work.
+The HTTP host still binds loopback, so a browser can open the same URL while the window is up. After `loadURL`, the shell cancels further in-window navigation and does not `openExternal` those cancelled main-frame loads ([automation navigation lock](../bug-fix/2026-08-17-gui-automation-navigation-lock.md)). User-clicked `target=_blank` http(s) links open in the system browser at most once per five seconds for the same URL. The shell does not implement the IPC carrier, native directory-picker provider, or `file://` dist loading named in the layering note; those remain future Electron-client work.
 
 ## Testing
 

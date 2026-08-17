@@ -103,6 +103,7 @@ describe('web-app runtime glue', () => {
     // reloads additionally need the rebuild watcher.
     expect(section?.text).toContain('pnpm run dev:web')
     expect(section?.text).toContain('Do not open, bind, navigate, or reload this GUI URL')
+    expect(section?.text).toContain('a loading snapshot means wait')
     const webRuntime = contributions.find(contribution => contribution.name === 'web-runtime')
     expect(webRuntime?.resolve()).toEqual({ DSH_WEB_URL: 'http://127.0.0.1:4567' })
     await ctx.fiber.dispose()

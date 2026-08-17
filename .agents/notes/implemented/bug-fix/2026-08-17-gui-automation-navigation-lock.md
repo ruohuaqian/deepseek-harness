@@ -12,9 +12,9 @@ The Web GUI holds long-lived EventSource (`/plugins/events`) and WebSocket strea
 
 Three owners close the loop.
 
-The unpublished desktop shell cancels in-window navigation after `loadURL`: `will-navigate` and (once the first document has finished) `will-redirect` always `preventDefault`. Cross-origin http(s) opens in the system browser. `setWindowOpenHandler` denies every popup, including a same-origin duplicate of the GUI. The [desktop window note](../feature/2026-08-17-windows-desktop-window.md) still owns that Electron assembly.
+The unpublished desktop shell cancels in-window navigation after `loadURL`: `will-navigate` and (once the first document has finished) `will-redirect` always `preventDefault` and do not call `openExternal`. OpenCLI classifies a cancelled CDP goto as retryable target navigation (~200ms). Handing each retry to the system browser reloads that URL, so the agent only ever reads a loading snapshot. `setWindowOpenHandler` still denies every popup and opens a distinct http(s) origin in the system browser at most once per five seconds. The [desktop window note](../feature/2026-08-17-windows-desktop-window.md) still owns that Electron assembly.
 
-`app:web-surface` forbids opening, binding, navigating, or reloading this GUI URL with browser automation or an external opener, and tells the model to drive other sites in a separate owned browser session. `DSH_WEB_URL`'s description states the same. The [GUI feedback-loop note](2026-07-28-web-gui-feedback-loop.md) still owns why the URL is published.
+`app:web-surface` forbids opening, binding, navigating, or reloading this GUI URL with browser automation or an external opener, and tells the model to drive other sites in a separate owned browser session. After opening a third-party URL, it must not open or reload that URL again; a loading snapshot means wait. `DSH_WEB_URL`'s description states the GUI identity is not a browse target. The [GUI feedback-loop note](2026-07-28-web-gui-feedback-loop.md) still owns why the URL is published.
 
 `GET /plugins/events` without `Accept: text/event-stream` is 406, so a document navigation cannot hang on the stream.
 
@@ -26,9 +26,11 @@ The unpublished desktop shell cancels in-window navigation after `loadURL`: `wil
 
 **Only change the prompt.** A Chrome tab of `dsh web` still reloads if an already-bound session targets it. The prompt is necessary and not sufficient; the shell lock and 406 cover the mechanical retries.
 
+**Hand cancelled main-frame navigations to `shell.openExternal`.** OpenCLI retries a cancelled CDP goto about every 200ms. Each `openExternal` reloads that URL in the system browser, so the agent only ever reads a loading snapshot. User-clicked `target=_blank` links still go through `setWindowOpenHandler`.
+
 ## Consequences
 
-OpenCLI and similar `browser open` of a third-party site from a dsh session use a separate owned browser session; the Electron GUI stays on the loaded document. A Chrome tab of the GUI can still be bound or reloaded by an operator who ignores the prompt. CDP `Page.reload` on Electron is not always delivered as `will-navigate`; the prompt remains the coverage for that path.
+OpenCLI and similar `browser open` of a third-party site from a dsh session use a separate owned browser session; the Electron GUI stays on the loaded document. Cancelled main-frame navigations do not reopen that site in the system browser. A Chrome tab of the GUI can still be bound or reloaded by an operator who ignores the prompt. CDP `Page.reload` on Electron is not always delivered as `will-navigate`; the prompt remains the coverage for that path.
 
 ## Testing
 
