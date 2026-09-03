@@ -15,7 +15,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { PwshLocalExecutor, ENCODING_PREAMBLE, candidatePwshPaths, resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
+import { PwshLocalExecutor, ENCODING_PREAMBLE, candidatePwshPaths, encodePwshCommand, resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import SubprocessRuntime from '@deepseek-ai/dsh-subprocess'
 import type { SubprocessHandle, SubprocessOutputReader, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
@@ -175,17 +175,19 @@ describe('spawn construction (pure, every platform)', () => {
     }
   }
 
-  it('runs every command as ONE argv element under the UTF-8 encoding preamble', async () => {
+  it('runs every command as UTF-16LE -EncodedCommand under the UTF-8 encoding preamble', async () => {
     const ctx = new Context()
     const subprocess = new CapturingSubprocessRuntime(ctx)
     await ctx.plugin(PwshLocalExecutor)
     await ctx.shell.run(ctx.shell.resolve({ command: 'Write-Output 你好' }))
     expect(subprocess.specs).toHaveLength(1)
     const { argv } = subprocess.specs[0]!
-    expect(argv.slice(0, 5)).toEqual([expect.any(String), '-NoLogo', '-NoProfile', '-NonInteractive', '-Command'])
-    expect(argv[5]).toBe(`${ENCODING_PREAMBLE}Write-Output 你好`)
+    expect(argv.slice(0, 5)).toEqual([expect.any(String), '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand'])
+    expect(Buffer.from(argv[5]!, 'base64').toString('utf16le')).toBe(`${ENCODING_PREAMBLE}Write-Output 你好`)
+    expect(argv[5]).toBe(encodePwshCommand(`${ENCODING_PREAMBLE}Write-Output 你好`))
     expect(ENCODING_PREAMBLE).toContain('[Console]::OutputEncoding')
     expect(ENCODING_PREAMBLE).toContain('$OutputEncoding')
+    expect(ENCODING_PREAMBLE).toContain('$ProgressPreference')
   })
 })
 
@@ -196,6 +198,20 @@ describe.skipIf(!hasPwsh)('PwshLocalExecutor.run', () => {
     expect(result.exitCode).toBe(0)
     expect(lf(result.stdout.text)).toBe('hi\n')
     expect(result.timeoutMs).toBe(10_000)
+  })
+
+  it('round-trips nested quotes and a here-string as data', async () => {
+    const { bash } = await setup()
+    const quoted = await bash.run(bash.resolve({
+      command: 'Write-Output \'it\'\'s a "quoted" path\'',
+    }))
+    expect(quoted.exitCode).toBe(0)
+    expect(lf(quoted.stdout.text)).toBe('it\'s a "quoted" path\n')
+    const here = await bash.run(bash.resolve({
+      command: 'Write-Output @\'\nfix: stop foo from \'bar\'\n\'@',
+    }))
+    expect(here.exitCode).toBe(0)
+    expect(lf(here.stdout.text)).toBe('fix: stop foo from \'bar\'\n')
   })
 
   it('uses config cwd, overridable per call', async () => {

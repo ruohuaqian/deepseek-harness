@@ -1,14 +1,14 @@
 /**
  * Local PowerShell Service Provider for the bash capability seam. Each command runs
- * as `pwsh -NoLogo -NoProfile -NonInteractive -Command <command>` in a managed
- * process spawned through `ctx.subprocess`; the executor owns command
+ * as `pwsh -NoLogo -NoProfile -NonInteractive -EncodedCommand <utf16le-base64>`
+ * in a managed process spawned through `ctx.subprocess`; the executor owns command
  * defaulting, deadlines and cause classification, the model-friendly terminal
  * environment, and the model-facing stdout/stderr merge for background reads.
  *
- * The command string is passed as ONE argv element to `-Command`: PowerShell
- * itself parses the text, and no intermediate shell exists, so there is no
- * shell-quoting layer to escape (the `bash -c` string domain has no
- * equivalent here). Native Win32 paths (`C:\...`) pass through unchanged.
+ * CreateProcess quoting and PowerShell's `-Command` tokenizer both re-parse
+ * quote characters. `-EncodedCommand` keeps the script out of those parsers,
+ * so nested quotes in the model command are data. Native Win32 paths
+ * (`C:\...`) pass through unchanged.
  *
  * @module @deepseek-ai/dsh-pwsh-local
  */
@@ -41,12 +41,24 @@ export const ENV_OVERRIDES = {
  * UTF-8 output pinning prepended to every command. The subprocess collector
  * decodes output bytes as UTF-8, but Windows PowerShell 5.1 (the last-resort
  * executable fallback) writes the console/OEM code page by default, which
- * garbles non-ASCII output; pwsh 7 defaults to UTF-8 and is unaffected. The
- * statements ride on line 1 after `; ` separators so PowerShell error line
- * numbers stay accurate.
+ * garbles non-ASCII output; pwsh 7 defaults to UTF-8 and is unaffected.
+ * `$ProgressPreference` silences the CLIXML progress records `-EncodedCommand`
+ * otherwise writes to stderr. The statements ride on line 1 after `; `
+ * separators so PowerShell error line numbers stay accurate.
  */
 export const ENCODING_PREAMBLE =
-  '[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [System.Text.UTF8Encoding]::new($false); '
+  '[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [System.Text.UTF8Encoding]::new($false); $ProgressPreference = \'SilentlyContinue\'; '
+
+/**
+ * Encode one PowerShell script for `pwsh -EncodedCommand`.
+ * UTF-16LE base64 keeps nested quotes out of CreateProcess quoting and
+ * PowerShell's `-Command` tokenizer.
+ * @param script - UTF-8 preamble plus the model command
+ * @returns base64 of the UTF-16LE script bytes
+ */
+export function encodePwshCommand(script: string): string {
+  return Buffer.from(script, 'utf16le').toString('base64')
+}
 
 /** Default SIGTERM→SIGKILL grace period (the `graceMs` config). */
 const DEFAULT_GRACE_MS = 3_000
@@ -217,7 +229,14 @@ export class PwshLocalExecutor extends ShellExecutor {
    * `@deepseek-ai/dsh-pwsh-sandbox`).
    */
   protected argv(spec: ShellExecSpec): string[] {
-    return [this.pwshPath, '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', `${ENCODING_PREAMBLE}${spec.command}`]
+    return [
+      this.pwshPath,
+      '-NoLogo',
+      '-NoProfile',
+      '-NonInteractive',
+      '-EncodedCommand',
+      encodePwshCommand(`${ENCODING_PREAMBLE}${spec.command}`),
+    ]
   }
 
   /** Map one resolved spec plus its argv onto a fully-specified subprocess spawn. */

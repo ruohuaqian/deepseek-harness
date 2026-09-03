@@ -103,10 +103,11 @@ function pwshDescription(backgroundEnabled: boolean, escalationModes: readonly S
   const background = backgroundEnabled
     ? 'Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.'
     : 'Background execution is not available; long-running commands must finish within the timeout.'
-  const base = 'Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. '
+  const base = 'Execute a PowerShell command and return its stdout/stderr. '
     + 'Each call runs in a fresh pwsh process: no state (cwd, variables, functions) persists between calls — '
     + 'pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\\...`); read environment '
-    + 'variables with `$env:NAME`. Non-zero exits are reported as `[exit code: N]`. '
+    + 'variables with `$env:NAME`. Write PowerShell, not bash: no POSIX heredoc (`cat <<EOF`) and no `bash -c`. Nested quotes and here-strings (`@\'...\'@`) round-trip as data. '
+    + 'Non-zero exits are reported as `[exit code: N]`. '
     + 'Current harness environment facts are exposed through managed `$env:DSH_*` variables; inspect them when needed. '
     + 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. '
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '

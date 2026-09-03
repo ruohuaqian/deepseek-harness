@@ -341,6 +341,8 @@ describe('registration', () => {
     const schema = ctx.tools.schemas().find(s => s.name === 'pwsh')
     expect(schema).toBeDefined()
     expect(schema?.description).toContain('PowerShell command')
+    expect(schema?.description).toContain('no POSIX heredoc')
+    expect(schema?.description).toContain('here-strings')
     expect(schema?.parameters.properties).toMatchObject({
       command: { type: 'string' },
       description: { type: 'string' },
