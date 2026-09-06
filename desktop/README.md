@@ -16,7 +16,7 @@ pnpm run build
 pnpm desktop
 ```
 
-The first `pnpm desktop` runs `npm install` inside `desktop/` to download Electron. Later launches reuse `desktop/node_modules`. Closing the window stops the `dsh web` child process.
+The first `pnpm desktop` runs `npm install` inside `desktop/` to download Electron. Later launches reuse `desktop/node_modules`. The shell starts `dsh web --no-open` so the GUI stays in this window instead of the system browser. Closing the window stops the `dsh web` child process.
 
 Extra arguments after `pnpm desktop` reach `dsh web`. Without `--port`, the host binds an OS-assigned port so a leftover browser server does not collide.
 

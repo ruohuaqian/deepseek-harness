@@ -10,9 +10,9 @@ Status: implemented
 
 ## Decision
 
-`desktop/` 是本地、不发布的 Electron 壳层。`pnpm desktop` 运行 [`scripts/desktop-launch.mjs`](../../../../scripts/desktop-launch.mjs)，首次使用时把 Electron 下载到 `desktop/node_modules`，然后启动 [`desktop/main.mjs`](../../../../desktop/main.mjs)。启动器把它自己的 Node.js 可执行文件作为 `DSH_NODE_EXEC_PATH` 传入。主进程用该 Node 路径 spawn 与浏览器相同的 `dsh web` 宿主——而不是 Electron 的 `process.execPath`——等待 `dsh web: http://…` 这一行，再在标题为 DeepSeek Harness 的 `BrowserWindow` 中加载该 loopback URL。Win32 文件夹对话框 worker 是带 IPC 通道的 `spawn(process.execPath, worker)`（[进程内对话框说明](2026-08-02-win32-in-process-folder-dialog.md)）；若在 `electron.exe` 下 spawn `dsh web`，该 worker 会在报告结果之前退出。
+`desktop/` 是本地、不发布的 Electron 壳层。`pnpm desktop` 运行 [`scripts/desktop-launch.mjs`](../../../../scripts/desktop-launch.mjs)，首次使用时把 Electron 下载到 `desktop/node_modules`，然后启动 [`desktop/main.mjs`](../../../../desktop/main.mjs)。启动器把它自己的 Node.js 可执行文件作为 `DSH_NODE_EXEC_PATH` 传入。主进程用该 Node 路径 spawn 与浏览器相同的 `dsh web` 宿主——而不是 Electron 的 `process.execPath`——等待 `dsh web: http://…` 这一行，再在标题为 DeepSeek Harness 的 `BrowserWindow` 中加载该 loopback URL。Win32 文件夹对话框 worker 是带 IPC 通道的 `spawn(process.execPath, worker)`（[进程内对话框说明](2026-08-02-win32-in-process-folder-dialog.zh.md)）；若在 `electron.exe` 下 spawn `dsh web`，该 worker 会在报告结果之前退出。
 
-窗口图标是 [`packages/client/ui-primitives/src/FishLogo.tsx`](../../../../packages/client/ui-primitives/src/FishLogo.tsx) 中的 FishLogo 鲸鱼路径，置于品牌蓝 `#3964FE` 上，与 [`packages/client/web/src/AppRoot.module.css`](../../../../packages/client/web/src/AppRoot.module.css) 使用的 Web UI 强调色一致。关闭窗口会停止子宿主。`pnpm desktop` 之后的额外 argv 会转发给 `dsh web`；除非调用方传入 `--port`，否则省略该 flag，让宿主使用操作系统分配的端口。
+窗口图标是 [`packages/client/ui-primitives/src/FishLogo.tsx`](../../../../packages/client/ui-primitives/src/FishLogo.tsx) 中的 FishLogo 鲸鱼路径，置于品牌蓝 `#3964FE` 上，与 [`packages/client/web/src/AppRoot.module.css`](../../../../packages/client/web/src/AppRoot.module.css) 使用的 Web UI 强调色一致。关闭窗口会停止子宿主。`pnpm desktop` 之后的额外 argv 会转发给 `dsh web`；除非调用方传入 `--port`，否则省略该 flag，让宿主使用操作系统分配的端口。壳层总会加上 `--no-open`，这样上游默认打开浏览器的交接就不会把 GUI 抢到浏览器标签页里。第一次 `loadURL` 之后，窗口拒绝后续导航和重定向，同源弹窗留在壳层内。
 
 该壳层不是 pnpm workspace 成员，也不是 dsh release member。因此 Electron 不会进入 `pnpm install`、CI 和 npm 发布。这是套在现有 HTTP Web UI 外的窗口，不是 [GUI 分层说明](../architecture/2026-07-19-gui-layering-and-rpc-protocol.md) 中描述的 IPC Electron 客户端。
 

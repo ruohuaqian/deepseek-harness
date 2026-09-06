@@ -24,7 +24,9 @@ let windowRef
 function webArgv(argv) {
   const rest = argv.filter(value => value !== '--')
   const hasPort = rest.some(value => value === '--port' || value.startsWith('--port='))
-  return hasPort ? ['web', ...rest] : ['web', '--port', '0', ...rest]
+  const hasNoOpen = rest.includes('--no-open')
+  const args = hasPort ? ['web', ...rest] : ['web', '--port', '0', ...rest]
+  return hasNoOpen ? args : [...args, '--no-open']
 }
 
 /**
@@ -139,17 +141,62 @@ function createWindow() {
   return window
 }
 
+/**
+ * After the GUI document is loaded, the shell must not navigate. Same-origin
+ * path changes full-reload this SPA. Cross-origin http(s) from a cancelled
+ * main-frame navigation must not be handed to the system browser: OpenCLI
+ * retries a cancelled CDP goto about every 200ms, and each openExternal
+ * reloads that URL so the agent only ever reads a loading page.
+ * @param origin - loaded GUI origin
+ * @param target - requested navigation URL
+ * @returns whether a user-opened popup should go to the system browser
+ */
+function shouldOpenExternally(origin, target) {
+  try {
+    const parsed = new URL(target)
+    if (parsed.origin === origin) return false
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+const externalOpenCooldownMs = 5_000
+let lastExternalUrl = ''
+let lastExternalAt = 0
+
+/**
+ * Open a URL in the system browser at most once per cooldown for the same
+ * target, so a popup loop cannot refresh it.
+ * @param target - http(s) URL
+ */
+function openExternalOnce(target) {
+  const now = Date.now()
+  if (target === lastExternalUrl && now - lastExternalAt < externalOpenCooldownMs) return
+  lastExternalUrl = target
+  lastExternalAt = now
+  void shell.openExternal(target)
+}
+
 function attachNavigationGuard(window, url) {
   const origin = new URL(url).origin
   window.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (target.startsWith(origin)) return { action: 'allow' }
-    void shell.openExternal(target)
+    if (shouldOpenExternally(origin, target)) openExternalOnce(target)
     return { action: 'deny' }
   })
-  window.webContents.on('will-navigate', (event, target) => {
-    if (target.startsWith(origin) || target.startsWith('file:')) return
+  window.webContents.on('will-navigate', (event) => {
     event.preventDefault()
-    void shell.openExternal(target)
+  })
+}
+
+/**
+ * Server-side redirects during the first loadURL must complete. Attach this
+ * only after that document has finished so a later redirect cannot replace it.
+ * @param window - the GUI BrowserWindow
+ */
+function attachRedirectGuard(window) {
+  window.webContents.on('will-redirect', (event) => {
+    event.preventDefault()
   })
 }
 
@@ -170,6 +217,7 @@ if (!locked) {
     const url = await startHost(process.argv.slice(2))
     attachNavigationGuard(window, url)
     await window.loadURL(url)
+    attachRedirectGuard(window)
   }).catch((error) => {
     console.error(error instanceof Error ? error.message : error)
     stopHost()
