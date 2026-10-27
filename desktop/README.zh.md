@@ -16,6 +16,16 @@ pnpm run build
 pnpm desktop
 ```
 
+### Windows 快捷方式（可随 fork 下发）
+
+克隆 / 拉取本仓库后，在仓库根目录执行一次：
+
+```sh
+pnpm desktop:shortcut
+```
+
+会在**桌面**和**开始菜单**安装「DeepSeek Harness」图标，指向仓库内的 `scripts/launch-dsh-desktop.cmd`（路径随仓库位置自动解析）。换机器或换目录后重新跑一次该命令即可更新快捷方式。
+
 首次 `pnpm desktop` 会在 `desktop/` 内运行 `npm install` 以下载 Electron。之后的启动会复用 `desktop/node_modules`。壳层以 `dsh web --no-open` 启动，因此 GUI 留在这个窗口里，而不会打开系统浏览器。关闭窗口会停止 `dsh web` 子进程。
 
 `pnpm desktop` 之后的额外参数会交给 `dsh web`。未指定 `--port` 时，宿主绑定操作系统分配的端口，以免与仍在运行的浏览器服务器冲突。
